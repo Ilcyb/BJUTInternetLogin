@@ -1,5 +1,6 @@
-from login import Wireless, Wire
-from utils import *
+from .login import Wireless, Wire
+from .utils import *
+
 import argparse
 
 action_name = {
@@ -11,7 +12,7 @@ action_name = {
 APP_NAME = '.bjutInternet'
 CONFIG_FILE = get_working_file(APP_NAME)
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description="BJUT Login command line tools.")
     parser.add_argument('--username', '-u', type=str, default=None, help='校园网账号')
     parser.add_argument('--password', '-p', type=str, default=None, help='校园网密码')
@@ -66,4 +67,6 @@ if __name__ == '__main__':
 
     login_object = Wire(args.username, args.password, login_type) if network_type == 'wire' else Wireless(args.username, args.password, login_type)
     getattr(login_object, action)() 
-    
+
+if __name__ == '__main__':
+    main()
