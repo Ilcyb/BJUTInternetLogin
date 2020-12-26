@@ -1,13 +1,13 @@
 config = {
     'login_url':{
-    'wire_ipv4': '',
-    'wire_ipv6': '',
+    'wire_ipv4': 'https://lgn.bjut.edu.cn/',
+    'wire_ipv6': 'https://lgn6.bjut.edu.cn/',
     'wireless_ipv4': 'http://wlgn.bjut.edu.cn/drcom/login',
     'wireless_ipv6': 'https://lgn6.bjut.edu.cn'
     },
     'logout_url':{
-    'wire_ipv4': '',
-    'wire_ipv6': '',
+    'wire_ipv4': 'http://lgn.bjut.edu.cn/F.htm',
+    'wire_ipv6': 'http://lgn6.bjut.edu.cn/F.htm',
     'wireless_ipv4': 'http://wlgn.bjut.edu.cn/drcom/logout',
     'wireless_ipv6': 'http://lgn6.bjut.edu.cn/F.htm'
     },
@@ -83,7 +83,7 @@ class Login:
                 if '登录' in r.text:
                     print('处于未登录状态，因此先进行登录再查询信息')
                     self.login()
-                    self.query_info()
+                    # self.query_info()
                     return
                 time = int(self.time_re.search(r.text).group(1))
                 flow = int(self.flow_re.search(r.text).group(1))
@@ -105,8 +105,59 @@ class Wire(Login):
     
     def __init__(self, username, passwd, type) -> None:
         super(Wire, self).__init__(username, passwd, type)
-
+        self.init_login_request_data()
+        self.init_logout_request_data()
     
+    def init_login_request_data(self):
+        if self.type == 'IPv4':
+            datas = {
+                'DDDDD': self.username,
+                'upass': self.passwd,
+                'v46s': 1,
+                'v6ip': '',
+                '0MKKey': ''
+            }
+        else:
+            datas = {
+                'DDDDD': self.username,
+                'upass': self.passwd,
+                'v46s': 2,
+                'v6ip': '',
+                '0MKKey': ''
+            }
+        self.login_request_data = datas
+
+    def init_logout_request_data(self):
+        if self.type == 'IPv4':
+            datas = {}
+        else:
+            datas = {}
+        self.logout_request_data = datas
+
+    def login(self):
+        result = self.request(self.login_url, self.login_request_data, type='POST')
+        result_text = result.text
+        if result_text == None:
+            print('有线网络{}登录失败!'.format(self.type))
+            return
+        if '登录成功窗' in result_text:
+                print('有线网络{}登录成功'.format(self.type))
+                self.query_info()
+        elif '信息返回窗' in result_text:
+            print('有线网络{}登录失败'.format(self.type))
+        else:
+            print('有线网络{}登录数据结构发生变化，请更新程序'.format(self.type))
+    
+    def logout(self):
+        result = self.request(self.logout_url, self.logout_request_data)
+        result_text = result.text
+        if result_text == None:
+            print('注销失败!')
+            return
+        if 'Logout Error(-1)' in result_text:
+            print('无线网络{}注销失败，未登录无法注销！'.format(self.type))
+        else:
+            print('无线网络{}注销成功'.format(self.type))
 
 class Wireless(Login):
     
@@ -190,7 +241,6 @@ class Wireless(Login):
             elif '信息返回窗' in result_text:
                 print('无线网络{}登录失败'.format(self.type))
             else:
-                print(result_text)
                 print('无线网络{}登录数据结构发生变化，请更新程序'.format(self.type))
 
     def logout(self):
