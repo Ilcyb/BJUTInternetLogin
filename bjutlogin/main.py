@@ -16,29 +16,24 @@ def main():
     parser = argparse.ArgumentParser(description="BJUT Login command line tools.")
     parser.add_argument('--username', '-u', type=str, default=None, help='校园网账号')
     parser.add_argument('--password', '-p', type=str, default=None, help='校园网密码')
-    parser.add_argument('--login', action ='store_true', help='登录')
-    parser.add_argument('--logout', action ='store_true', help='注销')
-    parser.add_argument('--type', '-t', type=str, help='IPv4、IPv6', default='IPv4')
-    parser.add_argument('--wire', action ='store_true', help='有线连接')
-    parser.add_argument('--wireless', action ='store_true', help='无线连接')
-    parser.add_argument('--query', '-q', action='store_true', help='查询校园网账户信息')
+    parser.add_argument('--type', '-t', type=str, help='IPv4(4)、IPv6(6)', default='IPv4')
+    action_group = parser.add_mutually_exclusive_group('ACTION')
+    action_group.add_argument('--login', action ='store_true', help='登录')
+    action_group.add_argument('--logout', action ='store_true', help='注销')
+    action_group.add_argument('--keep-alive', '-k', action='store_true', help='保持登录状态，掉线后自动重连')
+    action_group.add_argument('--query', '-q', action='store_true', help='查询校园网账户信息')
     parser.add_argument('--remember', action='store_true', help='记住账号密码')
+    connection_group = parser.add_mutually_exclusive_group('CONC')
+    connection_group.add_argument('--wire', action ='store_true', help='有线连接')
+    connection_group.add_argument('--wireless', action ='store_true', help='无线连接')
 
     args = parser.parse_args()
 
     action = None
-    login_type = args.type
+    login_type = parse_internet_type(args.type)
     network_type = None
 
-    if not args.login and not args.logout and not args.query:
-        print('没有指定操作，默认为登录操作')
-        action = 'login'
-    elif args.login:
-        action = 'login'
-    elif args.logout:
-        action = 'logout'
-    elif args.query:
-        action = 'query_info'
+    action = parse_action_type(dict(login=args.login, logout=args.logout, query_info=args.query, keep_alive=args.keep_alive))
 
     if (action == 'login' or action == 'query_info') and (args.username is None or args.password is None):
         saved_info = read_info_from_working_file(CONFIG_FILE)

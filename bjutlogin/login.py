@@ -31,8 +31,12 @@ logout_error_msg = {
 import requests
 import json
 import re
+import time
+import datetime
+import signal
 
 from requests.exceptions import Timeout
+from .utils import exit_gracefully
 
 class Login:
 
@@ -99,12 +103,35 @@ class Login:
                 print(r.text)
                 print('查询信息页面布局已发送改变，请更新程序')
         
+    def is_login(self):
+        r = requests.get(config['query_url'][self.type.lower()])
+        r.raise_for_status()
+        if '登录' in r.text:
+            return False
+        return True
+
+    def keep_alive(self):
+        self.login_attempt_record = []
+        signal.signal(signal.SIGINT, exit_gracefully)
+        print('Keep-Alive模式将会持续检测{}下的{}登录状态，如若检测到掉线则会自动重新登录。'.format(self.connect_method, self.type))
+        print('5分钟内连续掉线5次以上将会判断为竞态登录，将会自动结束Keep-Alive模式，Ctrl+C手动退出')
+        while True:
+            is_login = self.is_login()
+            if not is_login:
+                now_time = time.time()
+                if len(self.login_attempt_record) > 5 and now_time - self.login_attempt_record[-5] < 60*5:
+                    print('检测到5分钟内连续掉线5次以上，自动结束Keep-Alive模式')
+                    break
+                print('[{}]:当前为离线状态，自动重连'.format(datetime.datetime.fromtimestamp(now_time).isoformat(timespec='seconds')))
+                self.login()
+                self.login_attempt_record.append(now_time)
         
 
 class Wire(Login):
     
     def __init__(self, username, passwd, type) -> None:
         super(Wire, self).__init__(username, passwd, type)
+        self.connect_method = 'wire'
         self.init_login_request_data()
         self.init_logout_request_data()
     
@@ -163,6 +190,7 @@ class Wireless(Login):
     
     def __init__(self, username, passwd, type) -> None:
         super(Wireless, self).__init__(username, passwd, type)
+        self.connect_method = 'wireless'
         self.init_login_request_data()
         self.init_logout_request_data()
 
