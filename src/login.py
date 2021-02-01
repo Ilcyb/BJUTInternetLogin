@@ -125,6 +125,7 @@ class Login:
                 print('[{}]:当前为离线状态，自动重连'.format(datetime.datetime.fromtimestamp(now_time).isoformat(timespec='seconds')))
                 self.login()
                 self.login_attempt_record.append(now_time)
+            time.sleep(30)
         
 
 class Wire(Login):
