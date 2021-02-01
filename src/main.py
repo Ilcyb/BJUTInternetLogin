@@ -14,6 +14,8 @@ action_name = {
     'logout': '注销'
 }
 
+require_account_actions = ['login', 'query_info', 'keep_alive']
+
 APP_NAME = '.bjutInternet'
 CONFIG_FILE = get_working_file(APP_NAME)
 
@@ -40,7 +42,7 @@ def main():
 
     action = parse_action_type(**dict(login=args.login, logout=args.logout, query_info=args.query, keep_alive=args.keep_alive))
 
-    if (action == 'login' or action == 'query_info') and (args.username is None or args.password is None):
+    if (action in require_account_actions) and (args.username is None or args.password is None):
         saved_info = read_info_from_working_file(CONFIG_FILE)
         if saved_info.get('username', None) is not None and saved_info.get('password', None) is not None:
             args.username = saved_info['username']
