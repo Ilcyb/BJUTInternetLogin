@@ -36,7 +36,7 @@ import datetime
 import signal
 
 from requests.exceptions import Timeout
-from .utils import exit_gracefully
+from utils import exit_gracefully
 
 class Login:
 

@@ -1,5 +1,10 @@
-from .login import Wireless, Wire
-from .utils import *
+import sys
+import os
+curPath = os.path.abspath(os.path.dirname(__file__))
+sys.path.append(curPath)
+
+from login import Wireless, Wire
+from utils import *
 
 import argparse
 
@@ -13,17 +18,17 @@ APP_NAME = '.bjutInternet'
 CONFIG_FILE = get_working_file(APP_NAME)
 
 def main():
-    parser = argparse.ArgumentParser(description="BJUT Login command line tools.")
+    parser = argparse.ArgumentParser(prog='bjutlogin', description="BJUT Login command line tools.")
     parser.add_argument('--username', '-u', type=str, default=None, help='校园网账号')
     parser.add_argument('--password', '-p', type=str, default=None, help='校园网密码')
     parser.add_argument('--type', '-t', type=str, help='IPv4(4)、IPv6(6)', default='IPv4')
-    action_group = parser.add_mutually_exclusive_group('ACTION')
+    action_group = parser.add_mutually_exclusive_group()
     action_group.add_argument('--login', action ='store_true', help='登录')
     action_group.add_argument('--logout', action ='store_true', help='注销')
     action_group.add_argument('--keep-alive', '-k', action='store_true', help='保持登录状态，掉线后自动重连')
     action_group.add_argument('--query', '-q', action='store_true', help='查询校园网账户信息')
     parser.add_argument('--remember', action='store_true', help='记住账号密码')
-    connection_group = parser.add_mutually_exclusive_group('CONC')
+    connection_group = parser.add_mutually_exclusive_group()
     connection_group.add_argument('--wire', action ='store_true', help='有线连接')
     connection_group.add_argument('--wireless', action ='store_true', help='无线连接')
 
@@ -33,7 +38,7 @@ def main():
     login_type = parse_internet_type(args.type)
     network_type = None
 
-    action = parse_action_type(dict(login=args.login, logout=args.logout, query_info=args.query, keep_alive=args.keep_alive))
+    action = parse_action_type(**dict(login=args.login, logout=args.logout, query_info=args.query, keep_alive=args.keep_alive))
 
     if (action == 'login' or action == 'query_info') and (args.username is None or args.password is None):
         saved_info = read_info_from_working_file(CONFIG_FILE)
