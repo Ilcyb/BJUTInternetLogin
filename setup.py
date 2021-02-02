@@ -9,7 +9,7 @@ with open("README.md", "r") as f:
 
 setup(
     name="bjut_internet_login_tool",
-    version="0.1.4",
+    version="0.1.5",
     author="ilcyb",
     author_email="hybmail1996@gmail.com",
     description="BJUT Internet Login Tool for command line",

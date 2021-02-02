@@ -111,21 +111,25 @@ class Login:
         return True
 
     def keep_alive(self):
+        minutes = 10
+        loss_count = 2
+        check_interval = 300
         self.login_attempt_record = []
         signal.signal(signal.SIGINT, exit_gracefully)
         print('Keep-Alive模式将会持续检测{}下的{}登录状态，如若检测到掉线则会自动重新登录。'.format(self.connect_method, self.type))
-        print('5分钟内连续掉线5次以上将会判断为竞态登录，将会自动结束Keep-Alive模式，Ctrl+C手动退出')
+        print('{}分钟内连续掉线{}次以上将会判断为竞态登录，将会自动结束Keep-Alive模式，Ctrl+C手动退出'.format(minutes, loss_count))
         while True:
             is_login = self.is_login()
             if not is_login:
                 now_time = time.time()
-                if len(self.login_attempt_record) > 5 and now_time - self.login_attempt_record[-5] < 60*5:
-                    print('检测到5分钟内连续掉线5次以上，自动结束Keep-Alive模式')
+                if len(self.login_attempt_record) >= loss_count and now_time - self.login_attempt_record[-1*loss_count] < 60*minutes:
+                    print('检测到{}分钟内连续掉线{}次以上，自动结束Keep-Alive模式'.format(minutes, loss_count))
                     break
                 print('[{}]:当前为离线状态，自动重连'.format(datetime.datetime.fromtimestamp(now_time).isoformat(timespec='seconds')))
                 self.login()
                 self.login_attempt_record.append(now_time)
-            time.sleep(30)
+            # keep-alive模式会消耗流量？ 肯定是哪里有问题，暂且先把sleep时间变长
+            time.sleep(check_interval)
         
 
 class Wire(Login):
