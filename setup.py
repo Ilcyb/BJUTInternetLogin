@@ -9,7 +9,7 @@ with open("README.md", "r") as f:
 
 setup(
     name="bjut_internet_login_tool",
-    version="0.1.5",
+    version="0.1.7",
     author="ilcyb",
     author_email="hybmail1996@gmail.com",
     description="BJUT Internet Login Tool for command line",
@@ -18,6 +18,7 @@ setup(
     url="https://github.com/Ilcyb/BJUTInternetLogin",
     install_requires = [
         'requests',
+        'bs4'
     ],
     packages=find_packages(),
     classifiers=[

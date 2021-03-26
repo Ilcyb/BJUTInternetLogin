@@ -34,9 +34,11 @@ import re
 import time
 import datetime
 import signal
+import random
 
 from requests.exceptions import Timeout
 from utils import exit_gracefully
+from bs4 import BeautifulSoup
 
 class Login:
 
@@ -97,7 +99,8 @@ class Login:
                 Gbytes = int(flow/(1024*1024))
                 Mbytes = int((flow-(Gbytes*1024*1024))/1024)
                 fee = fee/10000
-                print('账户信息：\n当前已用流量：{} GB {} MB\n当前已用时长：{} 小时 {} 分钟\n当前账户余额：{} 元'.format(Gbytes, Mbytes, hours, mins, fee))
+                print('\n账户信息：\n当前已用流量：{} GB {} MB\n当前已用时长：{} 小时 {} 分钟\n当前账户余额：{} 元'.format(Gbytes, Mbytes, hours, mins, fee))
+                self.get_online_ip()
             except Exception as e:
                 print(r)
                 print(r.text)
@@ -130,6 +133,60 @@ class Login:
                 self.login_attempt_record.append(now_time)
             # keep-alive模式会消耗流量？ 肯定是哪里有问题，暂且先把sleep时间变长
             time.sleep(check_interval)
+
+    def get_online_ip(self):
+        login_headers = {
+            'Origin': 'https://jfself.bjut.edu.cn',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        }
+        session = requests.Session()
+
+        try:
+            login_index_response = session.get(url=config['jfself_url']['jf_login_index_url'], headers=login_headers)
+            login_index_response.raise_for_status()
+
+            # FIXME 不一定是4位
+            checkcode_index = login_index_response.text.find('checkcode=')+len('checkcode="')
+            checkcode_len = 4
+            checkcode = login_index_response.text[checkcode_index:checkcode_index+checkcode_len]
+
+            response = session.get(url=config['jfself_url']['jf_login_skin_url'], headers=login_headers)
+            response.raise_for_status()
+            response = session.get(url=config['jfself_url']['jf_login_randomcode_url'], headers=login_headers, params=dict(randomNum=random.random()))
+            response.raise_for_status()
+
+            login_raw_data = 'account={}&password={}&code=&checkcode={}&Submit=%E7%99%BB+%E5%BD%95'
+            login_action_response = session.post(url=config['jfself_url']['jf_login_action_url'], data=login_raw_data.format(self.username, self.passwd, checkcode), headers=login_headers)
+            login_action_response.raise_for_status()
+
+            ip_reponse = session.get(url=config['jfself_url']['jf_myip_url'], headers=login_headers)
+            ip_reponse.raise_for_status()
+
+            struct_doc = BeautifulSoup(ip_reponse.text, features="html.parser")
+            ip_table = struct_doc.tbody
+            ip_tr_list = ip_table.find_all('tr')
+            ips = {}
+            for ip_tr in ip_tr_list:
+                ipv4 = ip_tr.td.text
+                ipv6 = ip_tr.find_all('td')[1].text
+                if ipv4=='\xa0':
+                    ip = ipv6[:-1]
+                    ips['IPv6'] = ip
+                else:
+                    ip = ipv4[:-1]
+                    ips['IPv4'] = ip
+        
+        except (requests.RequestException):
+            print('无法查询在线IP，请检查网络连接')
+        except Exception:
+            print('无法查询在线IP，请更新程序或联系维护者mailto:hybmail1996@gmail.com')
+        else:
+            print('当前在线IP:[{}/2]'.format(len(ips)))
+            for ip_kind, ip_addr in ips.items():
+                print('\t{}:{}'.format(ip_kind, ip_addr))
         
 
 class Wire(Login):
