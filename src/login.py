@@ -14,6 +14,13 @@ config = {
     'query_url': {
         'ipv4': 'http://lgn.bjut.edu.cn/',
         'ipv6': 'http://lgn6.bjut.edu.cn/'
+    },
+    'jfself_url': {
+        'jf_login_index_url': 'https://jfself.bjut.edu.cn/nav_login',
+        'jf_login_action_url': 'https://jfself.bjut.edu.cn/LoginAction.action',
+        'jf_login_skin_url': 'https://jfself.bjut.edu.cn/getSkinList',
+        'jf_login_randomcode_url': 'https://jfself.bjut.edu.cn/RandomCodeAction.action',
+        'jf_myip_url': 'https://jfself.bjut.edu.cn/nav_offLine'
     }
 }
 
@@ -45,11 +52,16 @@ class Login:
     def __init__(self, username, passwd, type) -> None:
         self.username = username
         self.passwd = passwd
-        if type not in ['IPv4', 'IPv6']:
-            raise ValueError('type must be IPv4 or IPv6.')
+        if type.upper() not in ['IPV4', 'IPV6', 'ALL']:
+            raise ValueError('type must be IPv4, IPv6 or All.')
         self.login_url = config['login_url']['{}_{}'.format(self.__class__.__name__, type).lower()]
         self.logout_url = config['logout_url']['{}_{}'.format(self.__class__.__name__, type).lower()]
-        self.type = type
+        self.type = type.upper()
+        self.type_str = {
+            'IPV4': 'IPv4',
+            'IPV6': 'IPv6',
+            'ALL': 'IPv4 及 IPv6'
+        }
         self.time_re = re.compile(r"time='([0-9]+)")
         self.flow_re = re.compile(r"flow='([0-9]+)")
         self.fee_re = re.compile(r"fee='([0-9]+)")
@@ -181,8 +193,8 @@ class Login:
         
         except (requests.RequestException):
             print('无法查询在线IP，请检查网络连接')
-        except Exception:
-            print('无法查询在线IP，请更新程序或联系维护者mailto:hybmail1996@gmail.com')
+        except Exception as e:
+            print('无法查询在线IP，请更新程序或提交ISSUE:https://github.com/Ilcyb/BJUTInternetLogin/issues/new')
         else:
             print('当前在线IP:[{}/2]'.format(len(ips)))
             for ip_kind, ip_addr in ips.items():

@@ -1,5 +1,6 @@
 import os
 import json
+import socket
 
 os.path.expanduser('~')
 
@@ -48,3 +49,21 @@ def parse_action_type(**kwargs):
         return 'keep_alive'
     
     return 'login'
+
+# 获取本机IPv4地址
+def my_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('192.0.0.8', 1027))
+    except socket.error:
+        return None
+    return s.getsockname()[0]
+
+# 获取本机IPv6地址
+def my_ipv6():
+    s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    try:
+        s.connect(('2001:db8::', 1027))
+    except socket.error:
+        return None
+    return s.getsockname()[0]
