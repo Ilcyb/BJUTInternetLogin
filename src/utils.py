@@ -1,6 +1,9 @@
 import os
 import json
 import socket
+from packaging import version
+from bs4 import BeautifulSoup
+import requests
 
 os.path.expanduser('~')
 
@@ -69,3 +72,16 @@ def my_ipv6():
     except socket.error:
         return None
     return s.getsockname()[0]
+
+# 检查是否有可更新的新版本
+def check_version(current_version):
+    r = requests.get('https://pypi.org/project/bjut-internet-login-tool/')
+    project_doc = BeautifulSoup(r.text, features="html.parser")
+    project_name = project_doc.find('h1', {'class':'package-header__name'}).text.strip(' \n')
+    version_index = project_name.find(' ')
+    latest_version = project_name[version_index+1:]
+
+    if version.parse(latest_version) > version.parse(current_version):
+        return True, latest_version
+    else:
+        return False, None
