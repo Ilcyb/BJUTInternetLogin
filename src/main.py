@@ -5,7 +5,6 @@ sys.path.append(curPath)
 
 from login import Wireless, Wire
 from utils import *
-from setup import version as current_version
 
 import argparse
 
@@ -19,6 +18,7 @@ require_account_actions = ['login', 'query_info', 'keep_alive']
 
 APP_NAME = '.bjutInternet'
 CONFIG_FILE = get_working_file(APP_NAME)
+CURRENT_VERSION = '0.1.12'
 
 def main():
     parser = argparse.ArgumentParser(prog='bjutlogin', description='BJUT Login command line tool.')
@@ -40,8 +40,9 @@ def main():
 
     # 版本检查
     if args.version:
+        print(CURRENT_VERSION)
         try:
-            need_update, new_version = check_version(current_version)
+            need_update, new_version = check_version(CURRENT_VERSION)
         except Exception as e:
             need_update, new_version = False, None
         if need_update:

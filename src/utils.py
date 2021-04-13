@@ -75,7 +75,7 @@ def my_ipv6():
 
 # 检查是否有可更新的新版本
 def check_version(current_version):
-    r = requests.get('https://pypi.org/project/bjut-internet-login-tool/')
+    r = requests.get('https://pypi.org/project/bjut-internet-login-tool/', timeout=2)
     project_doc = BeautifulSoup(r.text, features="html.parser")
     project_name = project_doc.find('h1', {'class':'package-header__name'}).text.strip(' \n')
     version_index = project_name.find(' ')

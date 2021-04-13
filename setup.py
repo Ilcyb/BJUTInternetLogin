@@ -1,9 +1,8 @@
 from setuptools import setup, find_packages
+from src import CURRENT_VERSION
 
 with open("README.md", "r") as f:
     long_description = f.read()
-
-version = '0.1.11'
 
 # required = []
 # with open('requirements.txt', 'r', encoding='utf-8') as f:
@@ -11,7 +10,7 @@ version = '0.1.11'
 
 setup(
     name="bjut_internet_login_tool",
-    version=version,
+    version=CURRENT_VERSION,
     author="ilcyb",
     author_email="hybmail1996@gmail.com",
     description="BJUT Internet Login Tool for command line",
