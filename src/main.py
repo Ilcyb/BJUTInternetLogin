@@ -23,7 +23,7 @@ def main():
     parser = argparse.ArgumentParser(prog='bjutlogin', description="BJUT Login command line tools.")
     parser.add_argument('--username', '-u', type=str, default=None, help='校园网账号')
     parser.add_argument('--password', '-p', type=str, default=None, help='校园网密码')
-    parser.add_argument('--type', '-t', type=str, help='IPv4(4)、IPv6(6)', default='IPv4')
+    parser.add_argument('--type', '-t', type=str, help='IPv4(4)、IPv6(6) or All 默认为同时登录v4与v6', default='All')
     action_group = parser.add_mutually_exclusive_group()
     action_group.add_argument('--login', action ='store_true', help='登录')
     action_group.add_argument('--logout', action ='store_true', help='注销')

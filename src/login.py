@@ -2,18 +2,23 @@ config = {
     'login_url':{
     'wire_ipv4': 'https://lgn.bjut.edu.cn/',
     'wire_ipv6': 'https://lgn6.bjut.edu.cn/',
+    'wire_all': ['https://lgn6.bjut.edu.cn/V6?https://lgn.bjut.edu.cn', 'https://lgn.bjut.edu.cn/'],
     'wireless_ipv4': 'http://wlgn.bjut.edu.cn/drcom/login',
-    'wireless_ipv6': 'https://lgn6.bjut.edu.cn'
+    'wireless_ipv6': 'https://lgn6.bjut.edu.cn',
+    'wireless_all': ''
     },
     'logout_url':{
     'wire_ipv4': 'http://lgn.bjut.edu.cn/F.htm',
     'wire_ipv6': 'http://lgn6.bjut.edu.cn/F.htm',
+    'wire_all': 'http://lgn.bjut.edu.cn/F.htm',
     'wireless_ipv4': 'http://wlgn.bjut.edu.cn/drcom/logout',
-    'wireless_ipv6': 'http://lgn6.bjut.edu.cn/F.htm'
+    'wireless_ipv6': 'http://lgn6.bjut.edu.cn/F.htm',
+    'wireless_all': ''
     },
     'query_url': {
         'ipv4': 'http://lgn.bjut.edu.cn/',
-        'ipv6': 'http://lgn6.bjut.edu.cn/'
+        'ipv6': 'http://lgn6.bjut.edu.cn/',
+        'all': 'http://lgn.bjut.edu.cn/'
     },
     'jfself_url': {
         'jf_login_index_url': 'https://jfself.bjut.edu.cn/nav_login',
@@ -21,7 +26,8 @@ config = {
         'jf_login_skin_url': 'https://jfself.bjut.edu.cn/getSkinList',
         'jf_login_randomcode_url': 'https://jfself.bjut.edu.cn/RandomCodeAction.action',
         'jf_myip_url': 'https://jfself.bjut.edu.cn/nav_offLine'
-    }
+    },
+    'project_url': 'https://github.com/Ilcyb/BJUTInternetLogin'
 }
 
 
@@ -34,7 +40,13 @@ logout_error_msg = {
     'Logout Error(-1)': '没有登录，无法注销',
 }
 
+type_display = {
+    'IPV4': ' IPv4 ',
+    'IPV6': ' IPv6 ',
+    'ALL': ' IPv4 及 IPv6 '
+}
 
+from sys import int_info
 import requests
 import json
 import re
@@ -44,7 +56,7 @@ import signal
 import random
 
 from requests.exceptions import Timeout
-from utils import exit_gracefully
+from utils import exit_gracefully, my_ipv6
 from bs4 import BeautifulSoup
 
 class Login:
@@ -57,11 +69,6 @@ class Login:
         self.login_url = config['login_url']['{}_{}'.format(self.__class__.__name__, type).lower()]
         self.logout_url = config['logout_url']['{}_{}'.format(self.__class__.__name__, type).lower()]
         self.type = type.upper()
-        self.type_str = {
-            'IPV4': 'IPv4',
-            'IPV6': 'IPv6',
-            'ALL': 'IPv4 及 IPv6'
-        }
         self.time_re = re.compile(r"time='([0-9]+)")
         self.flow_re = re.compile(r"flow='([0-9]+)")
         self.fee_re = re.compile(r"fee='([0-9]+)")
@@ -160,10 +167,9 @@ class Login:
             login_index_response = session.get(url=config['jfself_url']['jf_login_index_url'], headers=login_headers)
             login_index_response.raise_for_status()
 
-            # FIXME 不一定是4位
-            checkcode_index = login_index_response.text.find('checkcode=')+len('checkcode="')
-            checkcode_len = 4
-            checkcode = login_index_response.text[checkcode_index:checkcode_index+checkcode_len]
+            checkcode_index_begin = login_index_response.text.find('checkcode=')+len('checkcode="')
+            checkcode_index_end = login_index_response.text[checkcode_index_begin:].find('";') + checkcode_index_begin
+            checkcode = login_index_response.text[checkcode_index_begin:checkcode_index_end]
 
             response = session.get(url=config['jfself_url']['jf_login_skin_url'], headers=login_headers)
             response.raise_for_status()
@@ -180,26 +186,41 @@ class Login:
             struct_doc = BeautifulSoup(ip_reponse.text, features="html.parser")
             ip_table = struct_doc.tbody
             ip_tr_list = ip_table.find_all('tr')
-            ips = {}
+            ips = []
             for ip_tr in ip_tr_list:
+                ip_info = {}
                 ipv4 = ip_tr.td.text
                 ipv6 = ip_tr.find_all('td')[1].text
+
                 if ipv4=='\xa0':
-                    ip = ipv6[:-1]
-                    ips['IPv6'] = ip
+                    pass
                 else:
                     ip = ipv4[:-1]
-                    ips['IPv4'] = ip
+                    ip_info['IPv4'] = ip
+                
+                if ipv6=='\xa0':
+                    pass
+                else:
+                    ip = ipv6[:-1]
+                    ip_info['IPv6'] = ip
+                
+                ips.append(ip_info)
         
         except (requests.RequestException):
             print('无法查询在线IP，请检查网络连接')
         except Exception as e:
             print('无法查询在线IP，请更新程序或提交ISSUE:https://github.com/Ilcyb/BJUTInternetLogin/issues/new')
         else:
-            print('当前在线IP:[{}/2]'.format(len(ips)))
-            for ip_kind, ip_addr in ips.items():
-                print('\t{}:{}'.format(ip_kind, ip_addr))
-        
+            print('当前在线终端:[{}/2]'.format(len(ips)))
+            for idx in range(len(ips)):
+                ip_info = ips[idx]
+                s = '\t终端{} '.format(idx+1)
+                if 'IPv4' in ip_info:
+                    s += '\tIPv4:{}'.format(ip_info['IPv4'])
+                if 'IPv6' in ip_info:
+                    s += '\tIPv6:{}'.format(ip_info['IPv6'])
+                print(s)
+
 
 class Wire(Login):
     
@@ -210,7 +231,7 @@ class Wire(Login):
         self.init_logout_request_data()
     
     def init_login_request_data(self):
-        if self.type == 'IPv4':
+        if self.type == 'IPV4':
             datas = {
                 'DDDDD': self.username,
                 'upass': self.passwd,
@@ -218,7 +239,7 @@ class Wire(Login):
                 'v6ip': '',
                 '0MKKey': ''
             }
-        else:
+        elif self.type == 'IPV6':
             datas = {
                 'DDDDD': self.username,
                 'upass': self.passwd,
@@ -226,28 +247,49 @@ class Wire(Login):
                 'v6ip': '',
                 '0MKKey': ''
             }
+        else:
+            datas = [
+                {
+                    'DDDDD': self.username,
+                    'upass': self.passwd,
+                    'v46s': 0,
+                    'v6ip': '',
+                    'f4serip': '',
+                    '0MKKey': ''
+                },
+                {
+                    'DDDDD': self.username,
+                    'upass': self.passwd,
+                    '0MKKey': 'Login',
+                    'v6ip': my_ipv6()
+                }
+            ]
         self.login_request_data = datas
 
     def init_logout_request_data(self):
-        if self.type == 'IPv4':
+        if self.type == 'IPV4':
             datas = {}
         else:
             datas = {}
         self.logout_request_data = datas
 
     def login(self):
-        result = self.request(self.login_url, self.login_request_data, type='POST')
+        if self.type in ['IPV4', 'IPV6']:
+            result = self.request(self.login_url, self.login_request_data, type='POST')
+        elif self.type == 'ALL':
+            result = self.request(self.login_url[0], self.login_request_data[0], type='POST')
+            result = self.request(self.login_url[1], self.login_request_data[1], type='POST')
         result_text = result.text
         if result_text == None:
-            print('有线网络{}登录失败!'.format(self.type))
+            print('有线网络{}登录失败!'.format(type_display[self.type]))
             return
         if '登录成功窗' in result_text:
-                print('有线网络{}登录成功'.format(self.type))
+                print('有线网络{}登录成功'.format(type_display[self.type]))
                 self.query_info()
         elif '信息返回窗' in result_text:
-            print('有线网络{}登录失败'.format(self.type))
+            print('有线网络{}登录失败'.format(type_display[self.type]))
         else:
-            print('有线网络{}登录数据结构发生变化，请更新程序'.format(self.type))
+            print('有线网络{}登录数据结构发生变化，请更新程序'.format(type_display[self.type]))
     
     def logout(self):
         result = self.request(self.logout_url, self.logout_request_data)
@@ -256,9 +298,9 @@ class Wire(Login):
             print('注销失败!')
             return
         if 'Logout Error(-1)' in result_text:
-            print('无线网络{}注销失败，未登录无法注销！'.format(self.type))
+            print('无线网络{}注销失败，未登录无法注销！'.format(type_display[self.type]))
         else:
-            print('无线网络{}注销成功'.format(self.type))
+            print('无线网络{}注销成功'.format(type_display[self.type]))
 
 class Wireless(Login):
     
@@ -269,7 +311,7 @@ class Wireless(Login):
         self.init_logout_request_data()
 
     def init_login_request_data(self):
-        if self.type=='IPv4':
+        if self.type=='IPV4':
             datas = {
                 'callback': 'dr1003',
                 'DDDDD': self.username,
@@ -287,7 +329,7 @@ class Wireless(Login):
                 'v': '8809',
                 'lang': 'zh',
             }
-        else:
+        elif self.type=='IPV6':
             datas = {
                 'DDDDD': self.username,
                 'upass': self.passwd,
@@ -295,55 +337,65 @@ class Wireless(Login):
                 'v6ip': '',
                 '0MKKey':''
             }
+        elif self.type=='ALL':
+            # TODO support wireless all login
+            datas = {}
         self.login_request_data = datas
     
     def init_logout_request_data(self):
-        if self.type=='IPv4':
+        if self.type=='IPV4':
             datas = {
                 'callback':'dr1002',
                 'jsVersion':'4.1',
                 'v':'869',
                 'lang':'zh'
             }
-        else:
+        elif self.type=='IPV6':
+            datas = {}
+        elif self.type=='ALL':
+            # TODO
             datas = {}
         self.logout_request_data = datas
 
     def login(self):
-        if self.type == 'IPv4':
+        if self.type == 'IPV4':
             result = self.request(self.login_url, self.login_request_data)
-        else:
+        elif self.type=='IPV6':
             result = self.request(self.login_url, self.login_request_data, type='POST')
+        elif self.type=='ALL':
+            # TODO
+            print('无线网络登录暂不支持一次性同时登录IPv4与IPv6，请分别登录或访问 {} 提出issue'.format(config['project_url']))
+            exit()
         result_text = result.text
         if result_text == None:
-            print('无线网络{}登录失败!'.format(self.type))
+            print('无线网络{}登录失败!'.format(type_display[self.type]))
             return
-        if self.type == 'IPv4':
+        if self.type == 'IPV4':
             try:
                 result_text = json.loads(result_text.strip()[7:][:-1])
                 login_result = result_text['result']
                 if login_result==1:
-                    print('无线网络{}登录成功！'.format(self.type))
+                    print('无线网络{}登录成功！'.format(type_display[self.type]))
                 elif login_result==0:
                     msg = result_text['msga']
                     if msg in login_error_msg:
                         msg = login_error_msg[msg]
-                    print('无线网络{}登录失败，{}'.format(self.type, msg))
+                    print('无线网络{}登录失败，{}'.format(type_display[self.type], msg))
             except Exception:
                 print(result)
                 print(result.text)
-                print('无线{}登录数据结构发生变化，请更新程序'.format(self.type))
+                print('无线{}登录数据结构发生变化，请更新程序'.format(type_display[self.type]))
             else:
                 if login_result==1:
                     self.query_info()
         else:
             if '登录成功窗' in result_text:
-                print('无线网络{}登录成功'.format(self.type))
+                print('无线网络{}登录成功'.format(type_display[self.type]))
                 self.query_info()
             elif '信息返回窗' in result_text:
-                print('无线网络{}登录失败'.format(self.type))
+                print('无线网络{}登录失败'.format(type_display[self.type]))
             else:
-                print('无线网络{}登录数据结构发生变化，请更新程序'.format(self.type))
+                print('无线网络{}登录数据结构发生变化，请更新程序'.format(type_display[self.type]))
 
     def logout(self):
         result = self.request(self.logout_url, self.logout_request_data)
@@ -351,24 +403,28 @@ class Wireless(Login):
         if result_text == None:
             print('注销失败!')
             return
-        if self.type == 'IPv4':
+        if self.type == 'IPV4':
             try:
                 result_text = json.loads(result_text.strip()[7:][:-1])
                 login_result = result_text['result']
                 if login_result==1:
-                    print('无线网络{}注销成功！'.format(self.type))
+                    print('无线网络{}注销成功！'.format(type_display[self.type]))
                 elif login_result==0:
                     msg = result_text['msga']
                     if msg in logout_error_msg:
                         msg = logout_error_msg[msg]
-                    print('无线网络{}注销失败，{}'.format(self.type, msg))
+                    print('无线网络{}注销失败，{}'.format(type_display[self.type], msg))
             except Exception:
                 print(result)
                 print(result.text)
-                print('无线{}注销数据结构发生变化，请更新程序'.format(self.type))
-        elif self.type == 'IPv6':
+                print('无线{}注销数据结构发生变化，请更新程序'.format(type_display[self.type]))
+        elif self.type == 'IPV6':
             if 'Logout Error(-1)' in result_text:
-                print('无线网络{}注销失败，未登录无法注销！'.format(self.type))
+                print('无线网络{}注销失败，未登录无法注销！'.format(type_display[self.type]))
             else:
-                print('无线网络{}注销成功'.format(self.type))
+                print('无线网络{}注销成功'.format(type_display[self.type]))
+        elif self.type=='ALL':
+            # TODO
+            print('无线网络登录暂不支持一次性同时注销IPv4与IPv6，请分别注销或访问 {} 提出issue'.format(config['project_url']))
+            exit()
 
