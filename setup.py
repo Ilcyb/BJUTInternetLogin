@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 from src import CURRENT_VERSION
 
-with open("README.md", "r") as f:
+with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
 
 # required = []
@@ -19,7 +19,8 @@ setup(
     url="https://github.com/Ilcyb/BJUTInternetLogin",
     install_requires = [
         'requests',
-        'bs4'
+        'bs4',
+        'packaging'
     ],
     packages=find_packages(),
     classifiers=[

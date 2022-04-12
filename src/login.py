@@ -105,7 +105,7 @@ class Login:
             return
         else:
             try:
-                if '登录' in r.text:
+                if '上网登录窗' in r.text:
                     print('处于未登录状态，因此先进行登录再查询信息')
                     self.login()
                     # self.query_info()

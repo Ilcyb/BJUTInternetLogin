@@ -18,7 +18,7 @@ require_account_actions = ['login', 'query_info', 'keep_alive']
 
 APP_NAME = '.bjutInternet'
 CONFIG_FILE = get_working_file(APP_NAME)
-CURRENT_VERSION = '0.1.12'
+CURRENT_VERSION = '0.1.14'
 
 def main():
     parser = argparse.ArgumentParser(prog='bjutlogin', description='BJUT Login command line tool.')
