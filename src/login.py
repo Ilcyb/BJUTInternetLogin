@@ -3,14 +3,17 @@ config = {
     'wire_ipv4': 'https://lgn.bjut.edu.cn/',
     'wire_ipv6': 'https://lgn6.bjut.edu.cn/',
     'wire_all': ['https://lgn6.bjut.edu.cn/V6?https://lgn.bjut.edu.cn', 'https://lgn.bjut.edu.cn/'],
+    'wire_container': ['https://lgn6.bjut.edu.cn/V6?https://lgn.bjut.edu.cn', 'https://lgn.bjut.edu.cn/'],
     'wireless_ipv4': 'http://wlgn.bjut.edu.cn/drcom/login',
     'wireless_ipv6': 'https://lgn6.bjut.edu.cn',
-    'wireless_all': ''
+    'wireless_all': '',
+    'wireless_container': ''
     },
     'logout_url':{
     'wire_ipv4': 'http://lgn.bjut.edu.cn/F.htm',
     'wire_ipv6': 'http://lgn6.bjut.edu.cn/F.htm',
     'wire_all': 'http://lgn.bjut.edu.cn/F.htm',
+    'wire_container': 'http://lgn.bjut.edu.cn/F.htm',
     'wireless_ipv4': 'http://wlgn.bjut.edu.cn/drcom/logout',
     'wireless_ipv6': 'http://lgn6.bjut.edu.cn/F.htm',
     'wireless_all': ''
@@ -18,7 +21,8 @@ config = {
     'query_url': {
         'ipv4': 'http://lgn.bjut.edu.cn/',
         'ipv6': 'http://lgn6.bjut.edu.cn/',
-        'all': 'http://lgn.bjut.edu.cn/'
+        'all': 'http://lgn.bjut.edu.cn/',
+        'container': 'http://lgn.bjut.edu.cn/'
     },
     'jfself_url': {
         'jf_login_index_url': 'https://jfself.bjut.edu.cn/nav_login',
@@ -43,7 +47,8 @@ logout_error_msg = {
 type_display = {
     'IPV4': ' IPv4 ',
     'IPV6': ' IPv6 ',
-    'ALL': ' IPv4 及 IPv6 '
+    'ALL': ' IPv4 及 IPv6 ',
+    'CONTAINER': 'docker容器内部'
 }
 
 from sys import int_info
@@ -64,7 +69,7 @@ class Login:
     def __init__(self, username, passwd, type) -> None:
         self.username = username
         self.passwd = passwd
-        if type.upper() not in ['IPV4', 'IPV6', 'ALL']:
+        if type.upper() not in ['IPV4', 'IPV6', 'ALL', 'CONTAINER']:
             raise ValueError('type must be IPv4, IPv6 or All.')
         self.login_url = config['login_url']['{}_{}'.format(self.__class__.__name__, type).lower()]
         self.logout_url = config['logout_url']['{}_{}'.format(self.__class__.__name__, type).lower()]
@@ -72,6 +77,7 @@ class Login:
         self.time_re = re.compile(r"time='([0-9]+)")
         self.flow_re = re.compile(r"flow='([0-9]+)")
         self.fee_re = re.compile(r"fee='([0-9]+)")
+        self.silent = False
     
     def request(self, url, data, type='GET'):
         try:
@@ -81,16 +87,16 @@ class Login:
                 r = requests.post(url, data=data, timeout=10)
             r.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            print('HTTP Error:{}'.format(e))
+            self.silent_print('HTTP Error:{}'.format(e))
             return None
         except requests.exceptions.Timeout as e:
-            print('连接登录服务器超时')
+            self.silent_print('连接登录服务器超时')
             return None
         except requests.exceptions.ConnectionError as e:
-            print('连接登录服务器失败，请检查网络连接')
+            self.silent_print('连接登录服务器失败，请检查网络连接')
             return None
         except requests.exceptions.RequestException as e:
-            print('未经处理的连接错误:{}'.format(e))
+            self.silent_print('未经处理的连接错误:{}'.format(e))
             return None
         else:
             return r
@@ -100,13 +106,13 @@ class Login:
             r = requests.get(config['query_url'][self.type.lower()])
             r.raise_for_status()
         except requests.exceptions.RequestException as e:
-            print('connection error:{}'.format(e))
-            print('查询账户信息失败!')
+            self.silent_print('connection error:{}'.format(e))
+            self.silent_print('查询账户信息失败!')
             return
         else:
             try:
                 if '上网登录窗' in r.text:
-                    print('处于未登录状态，因此先进行登录再查询信息')
+                    self.silent_print('处于未登录状态，因此先进行登录再查询信息')
                     self.login()
                     # self.query_info()
                     return
@@ -118,12 +124,16 @@ class Login:
                 Gbytes = int(flow/(1024*1024))
                 Mbytes = int((flow-(Gbytes*1024*1024))/1024)
                 fee = fee/10000
-                print('\n账户信息：\n当前已用流量：{} GB {} MB\n当前已用时长：{} 小时 {} 分钟\n当前账户余额：{} 元'.format(Gbytes, Mbytes, hours, mins, fee))
+                self.silent_print('\n账户信息：\n当前已用流量：{} GB {} MB\n当前已用时长：{} 小时 {} 分钟\n当前账户余额：{} 元'.format(Gbytes, Mbytes, hours, mins, fee))
                 self.get_online_ip()
             except Exception as e:
-                print(r)
-                print(r.text)
-                print('查询信息页面布局已发送改变，请更新程序')
+                self.silent_print(r)
+                self.silent_print(r.text)
+                self.silent_print('查询信息页面布局已发送改变，请更新程序')
+        
+    def silent_print(self, s):
+        if not self.silent:
+            print(s)
         
     def is_login(self):
         r = requests.get(config['query_url'][self.type.lower()])
@@ -138,16 +148,16 @@ class Login:
         check_interval = 300
         self.login_attempt_record = []
         signal.signal(signal.SIGINT, exit_gracefully)
-        print('Keep-Alive模式将会持续检测{}下的{}登录状态，如若检测到掉线则会自动重新登录。'.format(self.connect_method, self.type))
-        print('{}分钟内连续掉线{}次以上将会判断为竞态登录，将会自动结束Keep-Alive模式，Ctrl+C手动退出'.format(minutes, loss_count))
+        self.silent_print('Keep-Alive模式将会持续检测{}下的{}登录状态，如若检测到掉线则会自动重新登录。'.format(self.connect_method, self.type))
+        self.silent_print('{}分钟内连续掉线{}次以上将会判断为竞态登录，将会自动结束Keep-Alive模式，Ctrl+C手动退出'.format(minutes, loss_count))
         while True:
             is_login = self.is_login()
             if not is_login:
                 now_time = time.time()
                 if len(self.login_attempt_record) >= loss_count and now_time - self.login_attempt_record[-1*loss_count] < 60*minutes:
-                    print('检测到{}分钟内连续掉线{}次以上，自动结束Keep-Alive模式'.format(minutes, loss_count))
+                    self.silent_print('检测到{}分钟内连续掉线{}次以上，自动结束Keep-Alive模式'.format(minutes, loss_count))
                     break
-                print('[{}]:当前为离线状态，自动重连'.format(datetime.datetime.fromtimestamp(now_time).isoformat(timespec='seconds')))
+                self.silent_print('[{}]:当前为离线状态，自动重连'.format(datetime.datetime.fromtimestamp(now_time).isoformat(timespec='seconds')))
                 self.login()
                 self.login_attempt_record.append(now_time)
             # keep-alive模式会消耗流量？ 肯定是哪里有问题，暂且先把sleep时间变长
@@ -207,11 +217,11 @@ class Login:
                 ips.append(ip_info)
         
         except (requests.RequestException):
-            print('无法查询在线IP，请检查网络连接')
+            self.silent_print('无法查询在线IP，请检查网络连接')
         except Exception as e:
-            print('无法查询在线IP，请更新程序或提交ISSUE:https://github.com/Ilcyb/BJUTInternetLogin/issues/new')
+            self.silent_print('无法查询在线IP，请更新程序或提交ISSUE:https://github.com/Ilcyb/BJUTInternetLogin/issues/new')
         else:
-            print('当前在线终端:[{}/2]'.format(len(ips)))
+            self.silent_print('当前在线终端:[{}/2]'.format(len(ips)))
             for idx in range(len(ips)):
                 ip_info = ips[idx]
                 s = '\t终端{} '.format(idx+1)
@@ -219,7 +229,34 @@ class Login:
                     s += '\tIPv4:{}'.format(ip_info['IPv4'])
                 if 'IPv6' in ip_info:
                     s += '\tIPv6:{}'.format(ip_info['IPv6'])
-                print(s)
+                self.silent_print(s)
+            return ips
+
+    def get_host_IPv6_IP(self):
+        origin_type = self.type
+        self.type = 'IPV6'
+        self.login_url = config['login_url']['{}_{}'.format(self.__class__.__name__, self.type).lower()]
+        self.logout_url = config['logout_url']['{}_{}'.format(self.__class__.__name__, self.type).lower()]
+        self.init_login_request_data()
+        self.init_logout_request_data()
+        self.silent = True
+        self.login()
+        ips = self.get_online_ip()
+        host_ipv6 = None
+        for ipmap in ips:
+            if 'IPv4' not in ipmap and 'IPv6' in ipmap:
+                host_ipv6 = ipmap['IPv6']
+                break
+        self.logout()
+        self.type = origin_type
+        self.login_url = config['login_url']['{}_{}'.format(self.__class__.__name__, self.type).lower()]
+        self.logout_url = config['logout_url']['{}_{}'.format(self.__class__.__name__, self.type).lower()]
+        self.init_login_request_data()
+        self.init_logout_request_data()
+        self.silent = False 
+        if host_ipv6 == None:
+            raise Exception("无法获取宿主机IPv6地址")
+        return host_ipv6
 
 
 class Wire(Login):
@@ -279,28 +316,36 @@ class Wire(Login):
         elif self.type == 'ALL':
             result = self.request(self.login_url[0], self.login_request_data[0], type='POST')
             result = self.request(self.login_url[1], self.login_request_data[1], type='POST')
+        elif self.type == 'CONTAINER':
+            host_ipv6 = self.get_host_IPv6_IP()
+            time.sleep(4)
+            self.login_request_data[1]['v6ip'] = host_ipv6
+            result = self.request(self.login_url[0], self.login_request_data[0], type='POST')
+            result = self.request(self.login_url[1], self.login_request_data[1], type='POST')
         result_text = result.text
         if result_text == None:
-            print('有线网络{}登录失败!'.format(type_display[self.type]))
+            self.silent_print('有线网络{}登录失败!'.format(type_display[self.type]))
+            print(1)
             return
         if '登录成功窗' in result_text:
-                print('有线网络{}登录成功'.format(type_display[self.type]))
-                self.query_info()
+            self.silent_print('有线网络{}登录成功'.format(type_display[self.type]))
+            self.query_info()
         elif '信息返回窗' in result_text:
-            print('有线网络{}登录失败'.format(type_display[self.type]))
+            print(2)
+            self.silent_print('有线网络{}登录失败'.format(type_display[self.type]))
         else:
-            print('有线网络{}登录数据结构发生变化，请更新程序'.format(type_display[self.type]))
+            self.silent_print('有线网络{}登录数据结构发生变化，请更新程序'.format(type_display[self.type]))
     
     def logout(self):
         result = self.request(self.logout_url, self.logout_request_data)
         result_text = result.text
         if result_text == None:
-            print('注销失败!')
+            self.silent_print('注销失败!')
             return
         if 'Logout Error(-1)' in result_text:
-            print('无线网络{}注销失败，未登录无法注销！'.format(type_display[self.type]))
+            self.silent_print('无线网络{}注销失败，未登录无法注销！'.format(type_display[self.type]))
         else:
-            print('无线网络{}注销成功'.format(type_display[self.type]))
+            self.silent_print('无线网络{}注销成功'.format(type_display[self.type]))
 
 class Wireless(Login):
     

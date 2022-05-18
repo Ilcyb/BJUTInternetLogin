@@ -36,6 +36,8 @@ def parse_internet_type(type):
         return 'IPv6'
     elif type.upper() in ['A', 'ALL']:
         return 'All'
+    elif type.upper() in ['c', 'C', 'container']:
+        return 'CONTAINER'
     return type
 
 def parse_action_type(**kwargs):

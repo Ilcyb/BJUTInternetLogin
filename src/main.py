@@ -18,13 +18,13 @@ require_account_actions = ['login', 'query_info', 'keep_alive']
 
 APP_NAME = '.bjutInternet'
 CONFIG_FILE = get_working_file(APP_NAME)
-CURRENT_VERSION = '0.1.14'
+CURRENT_VERSION = '0.1.15'
 
 def main():
     parser = argparse.ArgumentParser(prog='bjutlogin', description='BJUT Login command line tool.')
     parser.add_argument('--username', '-u', type=str, default=None, help='校园网账号')
     parser.add_argument('--password', '-p', type=str, default=None, help='校园网密码')
-    parser.add_argument('--type', '-t', type=str, help='IPv4(4)、IPv6(6) or All 默认为同时登录v4与v6', default='All')
+    parser.add_argument('--type', '-t', type=str, help='IPv4(4)、IPv6(6) 、All Or CONTAINER, 默认为同时登录v4与v6', default='All')
     action_group = parser.add_mutually_exclusive_group()
     action_group.add_argument('--login', action ='store_true', help='登录')
     action_group.add_argument('--logout', action ='store_true', help='注销')
